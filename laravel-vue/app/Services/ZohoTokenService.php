@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Http;
 
 class ZohoTokenService
 {
+    protected $oauthUrl = 'https://accounts.zoho.eu/oauth/v2/token';
+
     public function getAccessToken(): string
     {
         if (Cache::has('zoho_access_token')) {
@@ -14,11 +16,14 @@ class ZohoTokenService
         }
 
         $refreshToken = Cache::get('zoho_refresh_token');
+        
+        if (!$refreshToken) {
+            throw new \Exception('No refresh token available. Please re-authenticate.');
+        }
 
-        // Fix: Add withoutVerifying() to disable SSL verification for local development
         $response = Http::withoutVerifying()
             ->asForm()
-            ->post(config('services.zoho.oauth_url'), [
+            ->post($this->oauthUrl, [
                 'grant_type' => 'refresh_token',
                 'client_id' => config('services.zoho.client_id'),
                 'client_secret' => config('services.zoho.client_secret'),
@@ -28,10 +33,15 @@ class ZohoTokenService
         $data = $response->json();
 
         if (isset($data['access_token'])) {
-            Cache::put('zoho_access_token', $data['access_token'], now()->addSeconds($data['expires_in']));
+            Cache::put('zoho_access_token', $data['access_token'], now()->addSeconds($data['expires_in'] - 300)); // 5 minutes buffer
             return $data['access_token'];
         }
 
-        throw new \Exception('Failed to refresh Zoho access token.');
+        \Log::error('Failed to refresh Zoho access token', [
+            'response' => $data,
+            'status' => $response->status()
+        ]);
+
+        throw new \Exception('Failed to refresh Zoho access token: ' . ($data['error'] ?? 'Unknown error'));
     }
 }
