@@ -42,4 +42,10 @@ Route::prefix('test/zoho')->group(function () {
             ], 500);
         }
     });
+
+    // Purchase order routes
+    Route::get('/purchaseorder', [App\Http\Controllers\ZohoTestController::class, 'showPurchaseOrderForm']);
+    Route::post('/purchaseorder', [App\Http\Controllers\ZohoTestController::class, 'createPurchaseOrder']);
+    // Vendors route
+    Route::get('/vendors/data', [App\Http\Controllers\ZohoTestController::class, 'getVendors']);
 });

@@ -86,4 +86,36 @@ class ZohoTestController extends Controller
             ], 500);
         }
     }
+
+    public function showPurchaseOrderForm()
+    {
+        return view('test-purchaseorder-form');
+    }
+
+    public function createPurchaseOrder(Request $request)
+    {
+        try {
+            $payload = $request->all();
+            $result = $this->zohoService->createPurchaseOrder($payload);
+            return response()->json($result);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to create purchase order',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getVendors()
+    {
+        try {
+            $vendors = $this->zohoService->getVendors();
+            return response()->json($vendors);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to fetch vendors',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

@@ -3,62 +3,8 @@
 <head>
     <title>Zoho Inventory - Items</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    @include('partials.common-css')
     <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            max-width: 1200px; 
-            margin: 0 auto; 
-            padding: 20px; 
-            background-color: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .nav-links { 
-            margin-bottom: 30px; 
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 5px;
-        }
-        .nav-links a { 
-            margin-right: 20px; 
-            color: #007cba; 
-            text-decoration: none; 
-            font-weight: 500;
-            padding: 8px 16px;
-            border-radius: 4px;
-            transition: background-color 0.3s;
-        }
-        .nav-links a:hover { 
-            background-color: #e3f2fd;
-            text-decoration: none;
-        }
-        .nav-links a.active {
-            background-color: #007cba;
-            color: white;
-        }
-        h1 { 
-            color: #333; 
-            margin-bottom: 30px;
-            border-bottom: 2px solid #007cba;
-            padding-bottom: 10px;
-        }
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-        .error {
-            background-color: #ffebee;
-            border: 1px solid #f44336;
-            color: #c62828;
-            padding: 15px;
-            border-radius: 4px;
-            margin: 20px 0;
-        }
         .items-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -124,8 +70,10 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 20px;
         }
         .stat-item {
+            flex: 1;
             text-align: center;
         }
         .stat-number {
@@ -142,12 +90,7 @@
 </head>
 <body>
     <div class="container">
-        <div class="nav-links">
-            <a href="/test/zoho/items" class="active">View Items</a>
-            <a href="/test/zoho/customers">View Customers</a>
-            <a href="/test/zoho/organizations">View Organizations</a>
-            <a href="/test/zoho/salesorder">Create Sales Order</a>
-        </div>
+        @include('partials.nav')
 
         <h1>📦 Zoho Inventory Items</h1>
         

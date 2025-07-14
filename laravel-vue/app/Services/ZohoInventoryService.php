@@ -119,9 +119,19 @@ class ZohoInventoryService
         return $this->createSalesOrder($salesOrderPayload);
     }
 
+    public function createPurchaseOrder(array $payload)
+    {
+        return $this->request('purchaseorders', 'POST', $payload);
+    }
+
     public function getOrganizations()
     {
         // This endpoint can help verify your organization ID
         return $this->request('organizations');
+    }
+
+    public function getVendors()
+    {
+        return $this->request('contacts', 'GET', ['contact_type' => 'vendor']);
     }
 }

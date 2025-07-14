@@ -3,62 +3,8 @@
 <head>
     <title>Zoho Inventory - Organizations</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    @include('partials.common-css')
     <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            max-width: 1200px; 
-            margin: 0 auto; 
-            padding: 20px; 
-            background-color: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .nav-links { 
-            margin-bottom: 30px; 
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 5px;
-        }
-        .nav-links a { 
-            margin-right: 20px; 
-            color: #007cba; 
-            text-decoration: none; 
-            font-weight: 500;
-            padding: 8px 16px;
-            border-radius: 4px;
-            transition: background-color 0.3s;
-        }
-        .nav-links a:hover { 
-            background-color: #e3f2fd;
-            text-decoration: none;
-        }
-        .nav-links a.active {
-            background-color: #007cba;
-            color: white;
-        }
-        h1 { 
-            color: #333; 
-            margin-bottom: 30px;
-            border-bottom: 2px solid #007cba;
-            padding-bottom: 10px;
-        }
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-        .error {
-            background-color: #ffebee;
-            border: 1px solid #f44336;
-            color: #c62828;
-            padding: 15px;
-            border-radius: 4px;
-            margin: 20px 0;
-        }
         .organizations-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
@@ -107,13 +53,6 @@
             display: inline-block;
             text-transform: capitalize;
         }
-        .organization-email {
-            color: #1976d2;
-            text-decoration: none;
-        }
-        .organization-email:hover {
-            text-decoration: underline;
-        }
         .refresh-btn {
             background-color: #007cba;
             color: white;
@@ -126,28 +65,6 @@
         }
         .refresh-btn:hover {
             background-color: #005a87;
-        }
-        .stats {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .stat-item {
-            text-align: center;
-        }
-        .stat-number {
-            font-size: 24px;
-            font-weight: bold;
-            color: #007cba;
-        }
-        .stat-label {
-            font-size: 12px;
-            color: #666;
-            text-transform: uppercase;
         }
         .info-box {
             background: #e3f2fd;
@@ -173,16 +90,35 @@
             margin-bottom: 15px;
             font-weight: bold;
         }
+        .stats {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+        }
+        .stat-item {
+            flex: 1;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007cba;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="nav-links">
-            <a href="/test/zoho/items">View Items</a>
-            <a href="/test/zoho/customers">View Customers</a>
-            <a href="/test/zoho/organizations" class="active">View Organizations</a>
-            <a href="/test/zoho/salesorder">Create Sales Order</a>
-        </div>
+        @include('partials.nav')
 
         <h1>🏢 Zoho Inventory Organizations</h1>
         

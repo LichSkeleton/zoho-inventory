@@ -3,6 +3,7 @@
 <head>
     <title>Zoho Inventory - Customers</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    @include('partials.common-css')
     <style>
         body { 
             font-family: Arial, sans-serif; 
@@ -167,12 +168,7 @@
 </head>
 <body>
     <div class="container">
-        <div class="nav-links">
-            <a href="/test/zoho/items">View Items</a>
-            <a href="/test/zoho/customers" class="active">View Customers</a>
-            <a href="/test/zoho/organizations">View Organizations</a>
-            <a href="/test/zoho/salesorder">Create Sales Order</a>
-        </div>
+        @include('partials.nav')
 
         <h1>👥 Zoho Inventory Customers</h1>
         
