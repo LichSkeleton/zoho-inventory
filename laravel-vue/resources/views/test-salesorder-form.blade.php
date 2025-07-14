@@ -261,16 +261,17 @@
                 .then(response => response.json())
                 .then(data => {
                     const isSuccess = !data.error && (!data.code || data.code === 0);
-                    const cssClass = isSuccess ? 'success' : 'error';
-                    resultDiv.innerHTML = '<div class="result ' + cssClass + '"><pre>' + JSON.stringify(data, null, 2) + '</pre></div>';
                     if (isSuccess) {
+                        resultDiv.innerHTML = '<div class="result success">Замовлення успішно створено!</div>';
                         document.getElementById('customer_name').value = '';
                         document.getElementById('itemsContainer').innerHTML = '';
                         addItemRow();
+                    } else {
+                        resultDiv.innerHTML = '<div class="result error">Сталася помилка при створенні замовлення. Зверніться до admin@gmail.com.</div>';
                     }
                 })
                 .catch(error => {
-                    resultDiv.innerHTML = '<div class="result error"><strong>Network Error:</strong> ' + error.message + '</div>';
+                    resultDiv.innerHTML = '<div class="result error">Сталася помилка при створенні замовлення. Зверніться до admin@gmail.com.</div>';
                 });
             });
         </script>
