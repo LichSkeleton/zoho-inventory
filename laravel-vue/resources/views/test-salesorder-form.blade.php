@@ -54,6 +54,50 @@
         .result { margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background-color: #f9f9f9; }
         .error { background-color: #ffebee; border-color: #f44336; }
         .success { background-color: #e8f5e8; border-color: #4caf50; }
+        .item-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+            margin-bottom: 10px;
+        }
+        .item-row select, .item-row input[type=number], .item-row input[readonly] {
+            margin-bottom: 0;
+        }
+        .item-row .item-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .item-row button {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 50%;
+            border: none;
+            background: #007cba;
+            color: #fff;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .item-row button:hover {
+            background: #005a87;
+        }
+        .items-titles{
+            display: flex;
+            flex-direction: row;
+            gap: 10px;
+        }
+        .item-title-row:first-child{
+            flex: 2 1 0%;
+        }
+        .item-title-row:not(:first-child){
+            flex: 1 1 0%;
+        }
+        .space-eat{
+            width: 32px;
+        }
     </style>
 </head>
 <body>
@@ -69,24 +113,16 @@
             @csrf
             <div class="form-group">
                 <label for="customer_name">Customer Name:</label>
-                <input type="text" id="customer_name" name="customer_name" value="NEEEW" required>
+                <input type="text" id="customer_name" name="customer_name" required>
             </div>
-                
-            <div class="form-group">
-                <label for="item_select">Товар:</label>
-                <select id="item_select" name="item_id" required style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;">
-                    <option value="">Оберіть товар...</option>
-                </select>
+            <div class="items-titles">
+                <div class="item-title-row">Товар</div>
+                <div class="item-title-row">Кількість</div>
+                <div class="item-title-row">Ціна за одиницю</div>
+                <div class="space-eat"></div>
             </div>
-            <div class="form-group">
-                <label for="quantity">Кількість:</label>
-                <input type="number" id="quantity" name="quantity" min="1" value="1" required>
-            </div>
-            <div class="form-group">
-                <label for="rate">Ціна за одиницю:</label>
-                <input type="text" id="rate" name="rate" readonly style="background:#f5f5f5;">
-            </div>
-            
+
+            <div id="itemsContainer"></div>
             <button type="submit">Create Sales Order</button>
         </form>
 
@@ -95,45 +131,121 @@
         <script>
             let itemsList = [];
             // Loading products into the dropdown
-            function loadItemsForDropdown() {
+            function loadItemsForDropdown(callback) {
                 fetch('/test/zoho/items/data')
                     .then(response => response.json())
                     .then(data => {
                         if (data.items && data.items.length > 0) {
                             itemsList = data.items;
-                            const select = document.getElementById('item_select');
-                            data.items.forEach(item => {
-                                const option = document.createElement('option');
-                                option.value = item.item_id;
-                                option.textContent = item.name + (item.sku ? ' (' + item.sku + ')' : '');
-                                option.setAttribute('data-rate', item.rate);
-                                select.appendChild(option);
-                            });
+                            if (callback) callback();
                         }
                     });
             }
-            // When choosing a product, substitute rate
-            document.addEventListener('DOMContentLoaded', function() {
-                loadItemsForDropdown();
-                document.getElementById('item_select').addEventListener('change', function() {
+
+            function createItemRow(selectedId = '', quantity = 1) {
+                const row = document.createElement('div');
+                row.className = 'item-row';
+
+                // Item
+                const select = document.createElement('select');
+                select.required = true;
+                select.style.flex = '2';
+                select.innerHTML = '<option value="">Оберіть товар...</option>' +
+                    itemsList.map(item => `<option value="${item.item_id}" data-rate="${item.rate}">${item.name}${item.sku ? ' ('+item.sku+')' : ''}</option>`).join('');
+                select.value = selectedId;
+
+                // QTY
+                const qty = document.createElement('input');
+                qty.type = 'number';
+                qty.min = 1;
+                qty.value = quantity;
+                qty.required = true;
+                qty.style.flex = '1';
+
+                // Rate
+                const rate = document.createElement('input');
+                rate.type = 'text';
+                rate.readOnly = true;
+                rate.style.background = '#f5f5f5';
+                rate.style.flex = '1';
+                rate.value = '';
+
+                // Set rate when selecting a product
+                select.addEventListener('change', function() {
                     const selected = itemsList.find(i => i.item_id === this.value);
-                    document.getElementById('rate').value = selected ? selected.rate : '';
+                    rate.value = selected ? selected.rate : '';
+                });
+                // If already selected, substitute rate
+                if (selectedId) {
+                    const selected = itemsList.find(i => i.item_id === selectedId);
+                    rate.value = selected ? selected.rate : '';
+                }
+
+                // Buttons + and −
+                const actions = document.createElement('div');
+                actions.className = 'item-actions';
+                const plus = document.createElement('button');
+                plus.type = 'button';
+                plus.textContent = '+';
+                plus.title = 'Додати рядок';
+                plus.onclick = function() { addItemRow(); };
+                const minus = document.createElement('button');
+                minus.type = 'button';
+                minus.textContent = '−';
+                minus.title = 'Видалити рядок';
+                minus.onclick = function() {
+                    if (document.querySelectorAll('.item-row').length > 1) {
+                        row.remove();
+                    }
+                };
+                actions.appendChild(plus);
+                actions.appendChild(minus);
+
+                // Add to the line
+                row.appendChild(select);
+                row.appendChild(qty);
+                row.appendChild(rate);
+                row.appendChild(actions);
+                return row;
+            }
+
+            function addItemRow(selectedId = '', quantity = 1) {
+                const container = document.getElementById('itemsContainer');
+                const row = createItemRow(selectedId, quantity);
+                container.appendChild(row);
+            }
+
+            // Initialization
+            document.addEventListener('DOMContentLoaded', function() {
+                loadItemsForDropdown(() => {
+                    addItemRow();
                 });
             });
+
             // Submit form
             document.getElementById('salesOrderForm').addEventListener('submit', function(e) {
                 e.preventDefault();
                 const resultDiv = document.getElementById('result');
                 resultDiv.innerHTML = '<p>Processing...</p>';
                 const customerName = document.getElementById('customer_name').value;
-                const itemId = document.getElementById('item_select').value;
-                const quantity = parseInt(document.getElementById('quantity').value, 10);
-                const rate = parseFloat(document.getElementById('rate').value);
-                if (!itemId || !quantity || !rate) {
-                    resultDiv.innerHTML = '<div class="result error"><strong>Помилка:</strong> Заповніть всі поля!</div>';
+                const itemRows = document.querySelectorAll('.item-row');
+                const lineItems = [];
+                let valid = true;
+                itemRows.forEach(row => {
+                    const select = row.querySelector('select');
+                    const qty = row.querySelector('input[type=number]');
+                    const rate = row.querySelector('input[readonly]');
+                    if (!select.value || !qty.value || !rate.value) valid = false;
+                    lineItems.push({
+                        item_id: select.value,
+                        quantity: parseInt(qty.value, 10),
+                        rate: parseFloat(rate.value)
+                    });
+                });
+                if (!valid || lineItems.length === 0) {
+                    resultDiv.innerHTML = '<div class="result error"><strong>Помилка:</strong> Заповніть всі поля та додайте хоча б один товар!</div>';
                     return;
                 }
-                const lineItems = [{ item_id: itemId, quantity: quantity, rate: rate }];
                 const data = {
                     customer_name: customerName,
                     line_items: lineItems
@@ -153,9 +265,8 @@
                     resultDiv.innerHTML = '<div class="result ' + cssClass + '"><pre>' + JSON.stringify(data, null, 2) + '</pre></div>';
                     if (isSuccess) {
                         document.getElementById('customer_name').value = '';
-                        document.getElementById('item_select').selectedIndex = 0;
-                        document.getElementById('quantity').value = 1;
-                        document.getElementById('rate').value = '';
+                        document.getElementById('itemsContainer').innerHTML = '';
+                        addItemRow();
                     }
                 })
                 .catch(error => {
