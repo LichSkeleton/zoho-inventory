@@ -27,6 +27,47 @@ class ZohoTestController extends Controller
         }
     }
 
+    public function showItems()
+    {
+        return view('zoho-items');
+    }
+
+    public function getCustomers()
+    {
+        try {
+            $customers = $this->zohoService->getCustomers();
+            return response()->json($customers);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to fetch customers',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function showCustomers()
+    {
+        return view('zoho-customers');
+    }
+
+    public function getOrganizations()
+    {
+        try {
+            $organizations = $this->zohoService->getOrganizations();
+            return response()->json($organizations);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to fetch organizations',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function showOrganizations()
+    {
+        return view('zoho-organizations');
+    }
+
     public function showSalesOrderForm()
     {
         return view('test-salesorder-form');

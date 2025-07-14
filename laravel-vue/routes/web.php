@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ZohoOAuthController;
+use App\Http\Controllers\ZohoTestController;
 use App\Services\ZohoInventoryService;
 
 // OAuth routes
@@ -11,46 +12,20 @@ Route::get('/oauth/zoho/callback', [ZohoOAuthController::class, 'handleZohoCallb
 // Test routes
 Route::prefix('test/zoho')->group(function () {
     
-    // GET route to test organizations (to verify organization ID)
-    Route::get('/organizations', function (ZohoInventoryService $zohoService) {
-        try {
-            $organizations = $zohoService->getOrganizations();
-            return response()->json($organizations);
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Failed to fetch organizations',
-                'message' => $e->getMessage()
-            ], 500);
-        }
-    });
+    // Items routes
+    Route::get('/items', [ZohoTestController::class, 'showItems']);
+    Route::get('/items/data', [ZohoTestController::class, 'getItems']);
     
-    // GET route for items
-    Route::get('/items', function (ZohoInventoryService $zohoService) {
-        try {
-            $items = $zohoService->getItems();
-            return response()->json($items);
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Failed to fetch items',
-                'message' => $e->getMessage()
-            ], 500);
-        }
-    });
-
-    // GET route to test customers
-    Route::get('/customers', function (ZohoInventoryService $zohoService) {
-        try {
-            $customers = $zohoService->getCustomers();
-            return response()->json($customers);
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'Failed to fetch customers',
-                'message' => $e->getMessage()
-            ], 500);
-        }
-    });
-
-    // POST route for creating sales order
+    // Customers routes
+    Route::get('/customers', [ZohoTestController::class, 'showCustomers']);
+    Route::get('/customers/data', [ZohoTestController::class, 'getCustomers']);
+    
+    // Organizations routes
+    Route::get('/organizations', [ZohoTestController::class, 'showOrganizations']);
+    Route::get('/organizations/data', [ZohoTestController::class, 'getOrganizations']);
+    
+    // Sales order routes
+    Route::get('/salesorder', [ZohoTestController::class, 'showSalesOrderForm']);
     Route::post('/salesorder', function (ZohoInventoryService $zohoService, \Illuminate\Http\Request $request) {
         try {
             $orderData = [
@@ -67,10 +42,5 @@ Route::prefix('test/zoho')->group(function () {
                 'message' => $e->getMessage()
             ], 500);
         }
-    });
-
-    // GET route to show form for creating sales order (for testing)
-    Route::get('/salesorder', function () {
-        return view('test-salesorder-form');
     });
 });

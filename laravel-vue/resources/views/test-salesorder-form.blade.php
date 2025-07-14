@@ -16,6 +16,11 @@
         .nav-links { margin-bottom: 20px; }
         .nav-links a { margin-right: 15px; color: #007cba; text-decoration: none; }
         .nav-links a:hover { text-decoration: underline; }
+        .nav-links a.active {
+            background-color: #007cba;
+            color: white;
+            text-decoration: none;
+        }
     </style>
 </head>
 <body>
@@ -23,6 +28,7 @@
         <a href="/test/zoho/items">View Items</a>
         <a href="/test/zoho/customers">View Customers</a>
         <a href="/test/zoho/organizations">View Organizations</a>
+        <a href="/test/zoho/salesorder" class="active">Create Sales Order</a>
     </div>
 
     <h1>Test Sales Order Creation</h1>
