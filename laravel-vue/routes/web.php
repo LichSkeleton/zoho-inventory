@@ -30,7 +30,6 @@ Route::prefix('test/zoho')->group(function () {
         try {
             $orderData = [
                 'customer_name' => $request->input('customer_name'),
-                'customer_email' => $request->input('customer_email'),
                 'line_items' => $request->input('line_items', [])
             ];
             

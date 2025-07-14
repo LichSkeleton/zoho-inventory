@@ -87,7 +87,7 @@ class ZohoInventoryService
         
         if (isset($customers['contacts'])) {
             foreach ($customers['contacts'] as $customer) {
-                if ($customer['email'] === $orderData['customer_email']) {
+                if (mb_strtolower($customer['contact_name']) === mb_strtolower($orderData['customer_name'])) {
                     $existingCustomer = $customer;
                     break;
                 }
@@ -98,8 +98,7 @@ class ZohoInventoryService
         if (!$existingCustomer) {
             $customerPayload = [
                 'contact_name' => $orderData['customer_name'],
-                'contact_type' => 'customer',
-                'email' => $orderData['customer_email']
+                'contact_type' => 'customer'
             ];
 
             $customerResponse = $this->createCustomer($customerPayload);

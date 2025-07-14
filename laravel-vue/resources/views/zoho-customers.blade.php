@@ -260,7 +260,6 @@
                     <div class="customer-type">${customer.contact_type || 'Unknown'}</div>
                     <div class="customer-name">${customer.contact_name || 'Unnamed Customer'}</div>
                     <div class="customer-details">
-                        <p><strong>Email:</strong> <a href="mailto:${customer.email || ''}" class="customer-email">${customer.email || 'N/A'}</a></p>
                         <p><strong>Phone:</strong> ${customer.phone || 'N/A'}</p>
                         <p><strong>Status:</strong> <span style="color: ${statusColor};">${status}</span></p>
                         <p><strong>Company:</strong> ${customer.company_name || 'N/A'}</p>
@@ -291,11 +290,9 @@
             const searchTerm = document.getElementById('searchBox').value.toLowerCase();
             const filteredCustomers = allCustomers.filter(customer => {
                 const name = (customer.contact_name || '').toLowerCase();
-                const email = (customer.email || '').toLowerCase();
                 const company = (customer.company_name || '').toLowerCase();
                 
                 return name.includes(searchTerm) || 
-                       email.includes(searchTerm) || 
                        company.includes(searchTerm);
             });
             
