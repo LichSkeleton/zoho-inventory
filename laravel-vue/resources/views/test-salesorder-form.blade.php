@@ -45,14 +45,55 @@
             function createItemRow(selectedId = '', quantity = 1) {
                 const row = document.createElement('div');
                 row.className = 'item-row';
+                row.style.marginBottom = '32px'; // more space for stock-info
+                row.style.position = 'relative'; // for absolute positioning of stock-info
 
-                // Item
+                // Item select
                 const select = document.createElement('select');
                 select.required = true;
                 select.style.flex = '2';
                 select.innerHTML = '<option value="">Оберіть товар...</option>' +
                     itemsList.map(item => `<option value="${item.item_id}" data-rate="${item.rate}">${item.name}${item.sku ? ' ('+item.sku+')' : ''}</option>`).join('');
                 select.value = selectedId;
+
+                // Stock info
+                const stockInfo = document.createElement('div');
+                stockInfo.className = 'stock-info';
+                stockInfo.style.fontSize = '13px';
+                stockInfo.style.color = '#888';
+                stockInfo.style.position = 'absolute';
+                stockInfo.style.left = '0';
+                stockInfo.style.top = '100%';
+                stockInfo.style.width = '100%';
+                stockInfo.style.marginTop = '2px';
+                stockInfo.style.minHeight = '18px';
+                stockInfo.style.pointerEvents = 'none';
+
+                function updateStockInfo(itemId) {
+                    const selected = itemsList.find(i => i.item_id === itemId);
+                    if (!selected) {
+                        stockInfo.textContent = '';
+                        return;
+                    }
+                    if (typeof selected.stock_on_hand === 'number' && selected.stock_on_hand >= 0) {
+                        stockInfo.textContent = `Даного товару: ${selected.stock_on_hand} ${selected.unit || ''}`;
+                    } else {
+                        stockInfo.textContent = '';
+                    }
+                }
+
+                select.addEventListener('change', function() {
+                    const selected = itemsList.find(i => i.item_id === this.value);
+                    rate.value = selected ? selected.rate : '';
+                    updateStockInfo(this.value);
+                });
+                if (selectedId) {
+                    const selected = itemsList.find(i => i.item_id === selectedId);
+                    rate.value = selected ? selected.rate : '';
+                    updateStockInfo(selectedId);
+                } else {
+                    updateStockInfo('');
+                }
 
                 // QTY
                 const qty = document.createElement('input');
@@ -70,29 +111,18 @@
                 rate.style.flex = '1';
                 rate.value = '';
 
-                // Set rate when selecting a product
-                select.addEventListener('change', function() {
-                    const selected = itemsList.find(i => i.item_id === this.value);
-                    rate.value = selected ? selected.rate : '';
-                });
-                // If already selected, substitute rate
-                if (selectedId) {
-                    const selected = itemsList.find(i => i.item_id === selectedId);
-                    rate.value = selected ? selected.rate : '';
-                }
-
                 // Buttons + and −
                 const actions = document.createElement('div');
                 actions.className = 'item-actions';
                 const plus = document.createElement('button');
                 plus.type = 'button';
                 plus.textContent = '+';
-                plus.title = 'Додати рядок';
+                plus.title = 'Add row';
                 plus.onclick = function() { addItemRow(); };
                 const minus = document.createElement('button');
                 minus.type = 'button';
                 minus.textContent = '−';
-                minus.title = 'Видалити рядок';
+                minus.title = 'Remove row';
                 minus.onclick = function() {
                     if (document.querySelectorAll('.item-row').length > 1) {
                         row.remove();
@@ -101,11 +131,12 @@
                 actions.appendChild(plus);
                 actions.appendChild(minus);
 
-                // Add to the line
+                // Add elements to the row
                 row.appendChild(select);
                 row.appendChild(qty);
                 row.appendChild(rate);
                 row.appendChild(actions);
+                row.appendChild(stockInfo); // stock-info is absolute under select
                 return row;
             }
 
