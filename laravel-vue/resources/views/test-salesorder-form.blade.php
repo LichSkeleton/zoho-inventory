@@ -81,7 +81,7 @@
                 select.required = true;
                 select.style.flex = '2';
                 select.innerHTML = '<option value="">Оберіть товар...</option>' +
-                    itemsList.map(item => `<option value="${item.item_id}" data-rate="${item.rate}">${item.name}${item.sku ? ' ('+item.sku+')' : ''}</option>`).join('');
+                    itemsList.filter(item => item.status === 'active').map(item => `<option value="${item.item_id}" data-rate="${item.rate}">${item.name}${item.sku ? ' ('+item.sku+')' : ''}</option>`).join('');
                 select.value = selectedId;
 
                 // Stock info
@@ -234,11 +234,45 @@
                     .then(r => r.json())
                     .then(poData => {
                         if (!poData.error && (!poData.code || poData.code === 0)) {
-                            resultDiv.innerHTML = '<div class="result success">Purchase Order для нестачі створено! Тепер можна оформити Sales Order.</div>';
-                            // Hide warning, clear cache
-                            document.getElementById('insufficientWarning').style.display = 'none';
-                            document.getElementById('vendorSelectContainer').style.display = 'none';
-                            insufficientItemsCache = null;
+                            // After a successful PO, we create a Sales Order only for insufficientItemsCache
+                            const customerName = document.getElementById('customer_name').value;
+                            const lineItems = insufficientItemsCache.map(item => {
+                                let rate = item.rate || 0;
+                                if (!rate) {
+                                    const found = itemsList.find(i => i.item_id === item.item_id);
+                                    rate = found && found.rate ? found.rate : 0;
+                                }
+                                return {
+                                    item_id: item.item_id,
+                                    quantity: item.ordered,
+                                    rate: rate
+                                };
+                            });
+                            fetch('/test/zoho/salesorder/force', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                                },
+                                body: JSON.stringify({
+                                    customer_name: customerName,
+                                    line_items: lineItems
+                                })
+                            })
+                            .then(response => response.json())
+                            .then(soData => {
+                                if (!soData.error && (!soData.code || soData.code === 0)) {
+                                    resultDiv.innerHTML = '<div class="result success">Purchase Order та Sales Order успішно створені!</div>';
+                                    document.getElementById('customer_name').value = '';
+                                    document.getElementById('itemsContainer').innerHTML = '';
+                                    addItemRow();
+                                    document.getElementById('insufficientWarning').style.display = 'none';
+                                    document.getElementById('vendorSelectContainer').style.display = 'none';
+                                    insufficientItemsCache = null;
+                                } else {
+                                    resultDiv.innerHTML = '<div class="result error">Purchase Order створено, але сталася помилка при створенні Sales Order. Зверніться до admin@gmail.com.</div>';
+                                }
+                            });
                         } else {
                             resultDiv.innerHTML = '<div class="result error">Помилка при створенні Purchase Order. Спробуйте ще раз або зверніться до admin@gmail.com.</div>';
                         }

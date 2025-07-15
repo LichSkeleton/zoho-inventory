@@ -45,11 +45,16 @@ Route::prefix('test/zoho')->group(function () {
             foreach ($orderData['line_items'] as $line) {
                 $itemId = $line['item_id'];
                 $qty = $line['quantity'];
-                $stock = isset($itemsById[$itemId]['actual_available_stock']) ? $itemsById[$itemId]['actual_available_stock'] : 0;
+                $itemData = $itemsById[$itemId] ?? null;
+                // Ignore service
+                if ($itemData && (isset($itemData['product_type']) && $itemData['product_type'] === 'service' || isset($itemData['item_type']) && $itemData['item_type'] === 'service')) {
+                    continue;
+                }
+                $stock = isset($itemData['actual_available_stock']) ? $itemData['actual_available_stock'] : 0;
                 if ($stock < $qty) {
                     $insufficient[] = [
                         'item_id' => $itemId,
-                        'name' => $itemsById[$itemId]['name'] ?? 'Unknown',
+                        'name' => $itemData['name'] ?? 'Unknown',
                         'needed' => $qty - $stock,
                         'ordered' => $qty,
                         'in_stock' => $stock
@@ -63,6 +68,23 @@ Route::prefix('test/zoho')->group(function () {
                 ]);
             }
 
+            $result = $zohoService->createSalesOrderWithCustomer($orderData);
+            return response()->json($result);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to create sales order',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    });
+
+    // Sales order without balance check (force create)
+    Route::post('/salesorder/force', function (ZohoInventoryService $zohoService, \Illuminate\Http\Request $request) {
+        try {
+            $orderData = [
+                'customer_name' => $request->input('customer_name'),
+                'line_items' => $request->input('line_items', [])
+            ];
             $result = $zohoService->createSalesOrderWithCustomer($orderData);
             return response()->json($result);
         } catch (\Exception $e) {
