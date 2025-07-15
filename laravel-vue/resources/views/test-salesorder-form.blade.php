@@ -27,9 +27,23 @@
         </form>
 
         <div id="result"></div>
+        <div id="insufficientWarning" style="display:none; margin:8px 0; padding:10px 14px; background:#fffbe6; border:1px solid #ffe58f; border-radius:6px;">
+            <label style="display:inline-flex;align-items:center;gap:6px;font-size:14px;line-height:1.2;margin-bottom:4px;">
+                <input type="checkbox" id="acknowledgeInsufficient" required style="width:16px;height:16px;margin:0;">
+                <span>Ознайомлений(а), що деяких товарів у замовленні не вистачає на складі, тому буде потрібно буде зачекати поки ми їх дозамовимо.</span>
+            </label>
+            <div style="font-size:13px;margin:4px 0 0 0;">А саме товар(и):</div>
+            <ul id="insufficientList" style="margin:4px 0 0 20px;"></ul>
+        </div>
+        <div id="vendorSelectContainer" style="display:none; margin-bottom:12px;">
+            <label for="vendorSelect">Постачальник для дозамовлення:</label>
+            <select id="vendorSelect" required></select>
+        </div>
 
         <script>
             let itemsList = [];
+            let insufficientItemsCache = null;
+            let vendorList = [];
             // Loading products into the dropdown
             function loadItemsForDropdown(callback) {
                 fetch('/test/zoho/items/data')
@@ -37,6 +51,20 @@
                     .then(data => {
                         if (data.items && data.items.length > 0) {
                             itemsList = data.items;
+                            if (callback) callback();
+                        }
+                    });
+            }
+
+            function loadVendors(callback) {
+                fetch('/test/zoho/vendors/data')
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.contacts) {
+                            vendorList = data.contacts;
+                            const select = document.getElementById('vendorSelect');
+                            select.innerHTML = '<option value="">Оберіть постачальника...</option>' +
+                                vendorList.map(v => `<option value="${v.contact_id}">${v.contact_name}</option>`).join('');
                             if (callback) callback();
                         }
                     });
@@ -75,8 +103,8 @@
                         stockInfo.textContent = '';
                         return;
                     }
-                    if (typeof selected.stock_on_hand === 'number' && selected.stock_on_hand >= 0) {
-                        stockInfo.textContent = `Даного товару: ${selected.stock_on_hand} ${selected.unit || ''}`;
+                    if (typeof selected.actual_available_stock === 'number' && selected.actual_available_stock >= 0) {
+                        stockInfo.textContent = `Даного товару: ${selected.actual_available_stock} ${selected.unit || ''}`;
                     } else {
                         stockInfo.textContent = '';
                     }
@@ -151,6 +179,7 @@
                 loadItemsForDropdown(() => {
                     addItemRow();
                 });
+                loadVendors(); // Load vendors on page load
             });
 
             // Submit form
@@ -177,6 +206,45 @@
                     resultDiv.innerHTML = '<div class="result error"><strong>Помилка:</strong> Заповніть всі поля та додайте хоча б один товар!</div>';
                     return;
                 }
+                // If the shortage warning is already shown, check the checkbox
+                const warningDiv = document.getElementById('insufficientWarning');
+                if (warningDiv.style.display !== 'none') {
+                    const ack = document.getElementById('acknowledgeInsufficient');
+                    if (!ack.checked) {
+                        resultDiv.innerHTML = '<div class="result error">Потрібно підтвердити ознайомлення з нестачею товарів!</div>';
+                        return;
+                    }
+                    // Create Purchase Order
+                    const vendorId = document.getElementById('vendorSelect').value;
+                    if (!vendorId) {
+                        resultDiv.innerHTML = '<div class="result error">Оберіть постачальника для дозамовлення!</div>';
+                        return;
+                    }
+                    fetch('/test/zoho/purchaseorder/insufficient', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        },
+                        body: JSON.stringify({
+                            insufficient_items: insufficientItemsCache,
+                            vendor_id: vendorId
+                        })
+                    })
+                    .then(r => r.json())
+                    .then(poData => {
+                        if (!poData.error && (!poData.code || poData.code === 0)) {
+                            resultDiv.innerHTML = '<div class="result success">Purchase Order для нестачі створено! Тепер можна оформити Sales Order.</div>';
+                            // Hide warning, clear cache
+                            document.getElementById('insufficientWarning').style.display = 'none';
+                            document.getElementById('vendorSelectContainer').style.display = 'none';
+                            insufficientItemsCache = null;
+                        } else {
+                            resultDiv.innerHTML = '<div class="result error">Помилка при створенні Purchase Order. Спробуйте ще раз або зверніться до admin@gmail.com.</div>';
+                        }
+                    });
+                    return;
+                }
                 const data = {
                     customer_name: customerName,
                     line_items: lineItems
@@ -191,12 +259,39 @@
                 })
                 .then(response => response.json())
                 .then(data => {
+                    if (data.status === 'insufficient' && data.insufficient_items) {
+                        insufficientItemsCache = data.insufficient_items;
+                        // Show warning and checkbox
+                        const warningDiv = document.getElementById('insufficientWarning');
+                        const list = document.getElementById('insufficientList');
+                        list.innerHTML = '';
+                        data.insufficient_items.forEach(item => {
+                            const li = document.createElement('li');
+                            li.textContent = `${item.name}: потрібно ще ${item.needed} (замовлено: ${item.ordered}, в наявності: ${item.in_stock})`;
+                            list.appendChild(li);
+                        });
+                        warningDiv.style.display = '';
+                        document.getElementById('acknowledgeInsufficient').checked = false;
+                        // Show supplier selection
+                        document.getElementById('vendorSelectContainer').style.display = '';
+                        loadVendors();
+                        // Prohibit submission without checkbox
+                        const submitBtn = document.querySelector('#salesOrderForm button[type=submit]');
+                        submitBtn.disabled = true;
+                        document.getElementById('acknowledgeInsufficient').onchange = function() {
+                            submitBtn.disabled = !this.checked;
+                        };
+                        resultDiv.innerHTML = '<div class="result error">Деяких товарів не вистачає. Підтвердіть, що ознайомлені з цим, щоб продовжити.</div>';
+                        return;
+                    }
+                    // If everything is ok or the checkbox has already been checked
                     const isSuccess = !data.error && (!data.code || data.code === 0);
                     if (isSuccess) {
                         resultDiv.innerHTML = '<div class="result success">Замовлення успішно створено!</div>';
                         document.getElementById('customer_name').value = '';
                         document.getElementById('itemsContainer').innerHTML = '';
                         addItemRow();
+                        document.getElementById('insufficientWarning').style.display = 'none';
                     } else {
                         resultDiv.innerHTML = '<div class="result error">Сталася помилка при створенні замовлення. Зверніться до admin@gmail.com.</div>';
                     }
