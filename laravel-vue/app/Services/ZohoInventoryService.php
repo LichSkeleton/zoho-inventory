@@ -134,4 +134,9 @@ class ZohoInventoryService
     {
         return $this->request('contacts', 'GET', ['contact_type' => 'vendor']);
     }
+
+    public function getItemById($itemId)
+    {
+        return $this->request("items/{$itemId}");
+    }
 }

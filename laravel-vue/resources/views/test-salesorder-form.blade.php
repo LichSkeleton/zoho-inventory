@@ -180,6 +180,10 @@
                     addItemRow();
                 });
                 loadVendors(); // Load vendors on page load
+                // Видаляю автоматичне встановлення manualVendorSelected при зміні dropbox
+                // document.getElementById('vendorSelect').addEventListener('change', function() {
+                //     if (this.value) manualVendorSelected = true;
+                // });
             });
 
             // Submit form
@@ -203,78 +207,154 @@
                     });
                 });
                 if (!valid || lineItems.length === 0) {
-                    resultDiv.innerHTML = '<div class="result error"><strong>Помилка:</strong> Заповніть всі поля та додайте хоча б один товар!</div>';
+                    resultDiv.innerHTML = '<div class=\'result error\'><strong>Помилка:</strong> Заповніть всі поля та додайте хоча б один товар!</div>';
                     return;
                 }
-                // If the shortage warning is already shown, check the checkbox
-                const warningDiv = document.getElementById('insufficientWarning');
-                if (warningDiv.style.display !== 'none') {
+                if (insufficientItemsCache) {
                     const ack = document.getElementById('acknowledgeInsufficient');
                     if (!ack.checked) {
-                        resultDiv.innerHTML = '<div class="result error">Потрібно підтвердити ознайомлення з нестачею товарів!</div>';
+                        resultDiv.innerHTML = '<div class=\'result error\'>Потрібно підтвердити ознайомлення з нестачею товарів!</div>';
                         return;
                     }
-                    // Create Purchase Order
+                    // If dropbox is visible and vendor is selected — create PO immediately
+                    const vendorSelectContainer = document.getElementById('vendorSelectContainer');
                     const vendorId = document.getElementById('vendorSelect').value;
-                    if (!vendorId) {
-                        resultDiv.innerHTML = '<div class="result error">Оберіть постачальника для дозамовлення!</div>';
+                    if (vendorSelectContainer.style.display !== 'none' && vendorId) {
+                        fetch('/test/zoho/purchaseorder/insufficient', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name=\'csrf-token\']').getAttribute('content')
+                            },
+                            body: JSON.stringify({
+                                insufficient_items: insufficientItemsCache,
+                                vendor_id: vendorId
+                            })
+                        })
+                        .then(r => r.json())
+                        .then(poData => {
+                            if (!poData.error && (!poData.code || poData.code === 0)) {
+                                fetch('/test/zoho/salesorder/force', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': document.querySelector('meta[name=\'csrf-token\']').getAttribute('content')
+                                    },
+                                    body: JSON.stringify({
+                                        customer_name: customerName,
+                                        line_items: insufficientItemsCache.map(item => ({
+                                            item_id: item.item_id,
+                                            quantity: item.ordered,
+                                            rate: item.rate
+                                        }))
+                                    })
+                                })
+                                .then(response => response.json())
+                                .then(soData => {
+                                    if (!soData.error && (!soData.code || soData.code === 0)) {
+                                        resultDiv.innerHTML = '<div class=\'result success\'>Purchase Order та Sales Order успішно створені!</div>';
+                                        document.getElementById('customer_name').value = '';
+                                        document.getElementById('itemsContainer').innerHTML = '';
+                                        addItemRow();
+                                        document.getElementById('insufficientWarning').style.display = 'none';
+                                        document.getElementById('vendorSelectContainer').style.display = 'none';
+                                        insufficientItemsCache = null;
+                                    } else {
+                                        resultDiv.innerHTML = '<div class=\'result error\'>Purchase Order створено, але сталася помилка при створенні Sales Order. Зверніться до admin@gmail.com.</div>';
+                                    }
+                                });
+                            } else {
+                                resultDiv.innerHTML = '<div class=\'result error\'>Помилка при створенні Purchase Order. Спробуйте ще раз або зверніться до admin@gmail.com.</div>';
+                            }
+                        });
                         return;
                     }
-                    fetch('/test/zoho/purchaseorder/insufficient', {
+                    // If not — make request to insufficient-vendors
+                    const itemIds = insufficientItemsCache.map(item => item.item_id);
+                    fetch('/test/zoho/insufficient-vendors', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            'X-CSRF-TOKEN': document.querySelector('meta[name=\'csrf-token\']').getAttribute('content')
                         },
-                        body: JSON.stringify({
-                            insufficient_items: insufficientItemsCache,
-                            vendor_id: vendorId
-                        })
+                        body: JSON.stringify({ item_ids: itemIds })
                     })
                     .then(r => r.json())
-                    .then(poData => {
-                        if (!poData.error && (!poData.code || poData.code === 0)) {
-                            // After a successful PO, we create a Sales Order only for insufficientItemsCache
-                            const customerName = document.getElementById('customer_name').value;
-                            const lineItems = insufficientItemsCache.map(item => {
-                                let rate = item.rate || 0;
-                                if (!rate) {
-                                    const found = itemsList.find(i => i.item_id === item.item_id);
-                                    rate = found && found.rate ? found.rate : 0;
-                                }
-                                return {
-                                    item_id: item.item_id,
-                                    quantity: item.ordered,
-                                    rate: rate
-                                };
-                            });
-                            fetch('/test/zoho/salesorder/force', {
+                    .then(data => {
+                        if (!data.items) {
+                            resultDiv.innerHTML = '<div class=\'result error\'>Помилка при отриманні preferred vendor. Спробуйте ще раз.</div>';
+                            return;
+                        }
+                        const withPreferred = [];
+                        const withoutPreferred = [];
+                        data.items.forEach((item, idx) => {
+                            if (item.preferred_vendor) {
+                                withPreferred.push({
+                                    ...insufficientItemsCache[idx],
+                                    vendor_id: item.preferred_vendor.vendor_id,
+                                    vendor_name: item.preferred_vendor.vendor_name
+                                });
+                            } else {
+                                withoutPreferred.push(insufficientItemsCache[idx]);
+                            }
+                        });
+                        if (withoutPreferred.length === 0) {
+                            fetch('/test/zoho/purchaseorder/insufficient', {
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json',
-                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name=\'csrf-token\']').getAttribute('content')
                                 },
                                 body: JSON.stringify({
-                                    customer_name: customerName,
-                                    line_items: lineItems
+                                    insufficient_items: withPreferred.map(item => ({
+                                        item_id: item.item_id,
+                                        needed: item.needed,
+                                        rate: item.rate,
+                                        vendor_id: item.vendor_id
+                                    })),
+                                    vendor_id: withPreferred[0].vendor_id
                                 })
                             })
-                            .then(response => response.json())
-                            .then(soData => {
-                                if (!soData.error && (!soData.code || soData.code === 0)) {
-                                    resultDiv.innerHTML = '<div class="result success">Purchase Order та Sales Order успішно створені!</div>';
-                                    document.getElementById('customer_name').value = '';
-                                    document.getElementById('itemsContainer').innerHTML = '';
-                                    addItemRow();
-                                    document.getElementById('insufficientWarning').style.display = 'none';
-                                    document.getElementById('vendorSelectContainer').style.display = 'none';
-                                    insufficientItemsCache = null;
+                            .then(r => r.json())
+                            .then(poData => {
+                                if (!poData.error && (!poData.code || poData.code === 0)) {
+                                    fetch('/test/zoho/salesorder/force', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-TOKEN': document.querySelector('meta[name=\'csrf-token\']').getAttribute('content')
+                                        },
+                                        body: JSON.stringify({
+                                            customer_name: customerName,
+                                            line_items: withPreferred.map(item => ({
+                                                item_id: item.item_id,
+                                                quantity: item.ordered,
+                                                rate: item.rate
+                                            }))
+                                        })
+                                    })
+                                    .then(response => response.json())
+                                    .then(soData => {
+                                        if (!soData.error && (!soData.code || soData.code === 0)) {
+                                            resultDiv.innerHTML = '<div class=\'result success\'>Purchase Order та Sales Order успішно створені!</div>';
+                                            document.getElementById('customer_name').value = '';
+                                            document.getElementById('itemsContainer').innerHTML = '';
+                                            addItemRow();
+                                            document.getElementById('insufficientWarning').style.display = 'none';
+                                            document.getElementById('vendorSelectContainer').style.display = 'none';
+                                            insufficientItemsCache = null;
+                                        } else {
+                                            resultDiv.innerHTML = '<div class=\'result error\'>Purchase Order створено, але сталася помилка при створенні Sales Order. Зверніться до admin@gmail.com.</div>';
+                                        }
+                                    });
                                 } else {
-                                    resultDiv.innerHTML = '<div class="result error">Purchase Order створено, але сталася помилка при створенні Sales Order. Зверніться до admin@gmail.com.</div>';
+                                    resultDiv.innerHTML = '<div class=\'result error\'>Помилка при створенні Purchase Order. Спробуйте ще раз або зверніться до admin@gmail.com.</div>';
                                 }
                             });
                         } else {
-                            resultDiv.innerHTML = '<div class="result error">Помилка при створенні Purchase Order. Спробуйте ще раз або зверніться до admin@gmail.com.</div>';
+                            resultDiv.innerHTML = '<div class=\'result error\'>Деякі товари не мають пріоритетного постачальника. Будь ласка, оберіть постачальника вручну.</div>';
+                            document.getElementById('vendorSelectContainer').style.display = '';
+                            loadVendors();
                         }
                     });
                     return;
@@ -307,8 +387,7 @@
                         warningDiv.style.display = '';
                         document.getElementById('acknowledgeInsufficient').checked = false;
                         // Show supplier selection
-                        document.getElementById('vendorSelectContainer').style.display = '';
-                        loadVendors();
+                        document.getElementById('vendorSelectContainer').style.display = 'none'; // Hide it initially
                         // Prohibit submission without checkbox
                         const submitBtn = document.querySelector('#salesOrderForm button[type=submit]');
                         submitBtn.disabled = true;

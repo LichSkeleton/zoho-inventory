@@ -135,4 +135,7 @@ Route::prefix('test/zoho')->group(function () {
         $result = $zohoService->createPurchaseOrder($payload);
         return response()->json($result);
     });
+
+    // Route to get the preferred vendor for insufficient items
+    Route::post('/insufficient-vendors', [App\Http\Controllers\ZohoTestController::class, 'insufficientVendors']);
 });

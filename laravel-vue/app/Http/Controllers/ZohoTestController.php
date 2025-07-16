@@ -118,4 +118,31 @@ class ZohoTestController extends Controller
             ], 500);
         }
     }
+
+    public function insufficientVendors(Request $request)
+    {
+        $itemIds = $request->input('item_ids', []);
+        $result = [];
+        foreach ($itemIds as $itemId) {
+            $item = $this->zohoService->getItemById($itemId);
+            $preferred = null;
+            if (isset($item['item']['preferred_vendors']) && is_array($item['item']['preferred_vendors']) && count($item['item']['preferred_vendors']) > 0) {
+                // We take the first one from is_primary or just the first one
+                foreach ($item['item']['preferred_vendors'] as $vendor) {
+                    if (!isset($preferred) || !empty($vendor['is_primary'])) {
+                        $preferred = [
+                            'vendor_id' => $vendor['vendor_id'],
+                            'vendor_name' => $vendor['vendor_name']
+                        ];
+                        if (!empty($vendor['is_primary'])) break;
+                    }
+                }
+            }
+            $result[] = [
+                'item_id' => $itemId,
+                'preferred_vendor' => $preferred
+            ];
+        }
+        return response()->json(['items' => $result]);
+    }
 }
